@@ -15,11 +15,19 @@ def derive_key(password: bytes, salt: bytes) -> bytes:
     Returns:
     - bytes: The derived 256-bit (32 bytes) cryptographic key.
     """
-    # Use a default salt if no salt is provided
+    if not password:
+        raise ValueError("Password cannot be empty.")
+    
     if len(salt) == 0:
         salt = bytes.fromhex("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
 
-    pass
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=salt,
+        iterations=100000
+    )
+    return kdf.derive(password)
 
 
 def add_padding(plaintext: bytes, block_size: int) -> bytes:
@@ -34,7 +42,9 @@ def add_padding(plaintext: bytes, block_size: int) -> bytes:
     Returns:
     - bytes: The padded plaintext.
     """
-    pass
+    padding_len = block_size - (len(plaintext) % block_size)
+    padding = bytes([padding_len] * padding_len)
+    return plaintext + padding
 
 def remove_padding(padded_plaintext: bytes) -> bytes:
     """
@@ -46,7 +56,8 @@ def remove_padding(padded_plaintext: bytes) -> bytes:
     Returns:
     - bytes: The plaintext without padding.
     """
-    pass
+    padding_len = padded_plaintext[-1]
+    return padded_plaintext[:-padding_len]
 
 def encrypt_aes(mode: str, key: bytes, plaintext: bytes, iv: bytes) -> tuple:
     """
@@ -61,11 +72,36 @@ def encrypt_aes(mode: str, key: bytes, plaintext: bytes, iv: bytes) -> tuple:
     Returns:
     - Tuple (encrypted_data, tag): The encrypted data and the authentication tag (for GCM mode). Set the tag to None if not in GCM mode.
     """
-    # Use a default IV if none is provided
+    if not plaintext:
+        raise ValueError("Plaintext cannot be empty.")
+    
+    if mode not in ["ECB", "CBC", "CFB", "OFB", "CTR", "GCM"]:
+        raise ValueError("Unsupported mode.")
+    
     if len(iv) == 0:
         iv = bytes.fromhex("5e8f16368792149f036e937dccd7c95b")
 
-    pass
+    cipher_mode = {
+        "ECB": modes.ECB(),
+        "CBC": modes.CBC(iv),
+        "CFB": modes.CFB(iv),
+        "OFB": modes.OFB(iv),
+        "CTR": modes.CTR(iv),
+        "GCM": modes.GCM(iv)
+    }[mode]
+
+    if mode in ["ECB", "CBC"] and mode != "GCM":
+        plaintext = add_padding(plaintext, 16)
+    
+    cipher = Cipher(algorithms.AES(key), cipher_mode)
+    encryptor = cipher.encryptor()
+    
+    if mode == "GCM":
+        encrypted_data = encryptor.update(plaintext) + encryptor.finalize()
+        return encrypted_data, encryptor.tag
+    else:
+        encrypted_data = encryptor.update(plaintext) + encryptor.finalize()
+        return encrypted_data, None
 
 def decrypt_aes(mode: str, key: bytes, ciphertext: bytes, iv: bytes, tag: bytes = None) -> bytes:
     """
@@ -81,11 +117,30 @@ def decrypt_aes(mode: str, key: bytes, ciphertext: bytes, iv: bytes, tag: bytes 
     Returns:
     - bytes: The decrypted plaintext.
     """
-    # Use a default IV if none is provided
+    if mode not in ["ECB", "CBC", "CFB", "OFB", "CTR", "GCM"]:
+        raise ValueError("Unsupported mode.")
+    
     if len(iv) == 0:
         iv = bytes.fromhex("5e8f16368792149f036e937dccd7c95b")
 
-    pass
+    cipher_mode = {
+        "ECB": modes.ECB(),
+        "CBC": modes.CBC(iv),
+        "CFB": modes.CFB(iv),
+        "OFB": modes.OFB(iv),
+        "CTR": modes.CTR(iv),
+        "GCM": modes.GCM(iv, tag) if mode == "GCM" else None
+    }[mode]
+
+    cipher = Cipher(algorithms.AES(key), cipher_mode)
+    decryptor = cipher.decryptor()
+    
+    decrypted_data = decryptor.update(ciphertext) + decryptor.finalize()
+
+    if mode in ["ECB", "CBC"]:
+        decrypted_data = remove_padding(decrypted_data)
+    
+    return decrypted_data
 
 def main():
     """
