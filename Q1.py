@@ -17,10 +17,8 @@ def derive_key(password: bytes, salt: bytes) -> bytes:
     """
     if not password:
         raise ValueError("Password cannot be empty.")
-    
     if len(salt) == 0:
         salt = bytes.fromhex("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
-
     kdf = PBKDF2HMAC(
         algorithm=hashes.SHA256(),
         length=32,
@@ -74,10 +72,8 @@ def encrypt_aes(mode: str, key: bytes, plaintext: bytes, iv: bytes) -> tuple:
     """
     if not plaintext:
         raise ValueError("Plaintext cannot be empty.")
-    
     if mode not in ["ECB", "CBC", "CFB", "OFB", "CTR", "GCM"]:
         raise ValueError("Unsupported mode.")
-    
     if len(iv) == 0:
         iv = bytes.fromhex("5e8f16368792149f036e937dccd7c95b")
 
@@ -119,7 +115,6 @@ def decrypt_aes(mode: str, key: bytes, ciphertext: bytes, iv: bytes, tag: bytes 
     """
     if mode not in ["ECB", "CBC", "CFB", "OFB", "CTR", "GCM"]:
         raise ValueError("Unsupported mode.")
-    
     if len(iv) == 0:
         iv = bytes.fromhex("5e8f16368792149f036e937dccd7c95b")
 
@@ -139,7 +134,6 @@ def decrypt_aes(mode: str, key: bytes, ciphertext: bytes, iv: bytes, tag: bytes 
 
     if mode in ["ECB", "CBC"]:
         decrypted_data = remove_padding(decrypted_data)
-    
     return decrypted_data
 
 def main():
