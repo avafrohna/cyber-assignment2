@@ -51,7 +51,28 @@ def create_certificate(private_key):
     Returns:
     - cert (x509.Certificate): The generated X.509 certificate.
     """
-    pass
+    subject = issuer = x509.Name([
+        x509.NameAttribute(NameOID.COUNTRY_NAME, "AU"),
+        x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, "Queensland"),
+        x509.NameAttribute(NameOID.LOCALITY_NAME, "Brisbane"),
+        x509.NameAttribute(NameOID.ORGANIZATION_NAME, "UQ"),
+        x509.NameAttribute(NameOID.COMMON_NAME, "uq.com"),
+    ])
+    
+    cert = x509.CertificateBuilder() \
+        .subject_name(subject) \
+        .issuer_name(issuer) \
+        .public_key(private_key.public_key()) \
+        .serial_number(SERIAL_NUMBER) \
+        .not_valid_before(NOT_VALID_BEFORE) \
+        .not_valid_after(NOT_VALID_AFTER) \
+        .add_extension(
+            x509.SubjectAlternativeName([x509.DNSName("uq.com")]),
+            critical=False
+        ) \
+        .sign(private_key, hashes.SHA256())
+
+    return cert
 
 def main():
     """
@@ -61,7 +82,8 @@ def main():
         private_key = generate_keys()
         cert = create_certificate(private_key)
         # Write the certificate to a PEM file
-        pass
+        with open("certificate.pem", "wb") as cert_file:
+            cert_file.write(cert.public_bytes(serialization.Encoding.PEM))
 
         print("Certificate created and written to 'certificate.pem'")
     except ValueError as e:
