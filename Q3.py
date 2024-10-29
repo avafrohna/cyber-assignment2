@@ -11,7 +11,11 @@ def check_prime(num):
     Raises:
     - ValueError: If num is not a prime number.
     """
-    pass
+    if num <= 1:
+        raise ValueError("Both p and q need to be prime numbers.")
+    for i in range(2, int(num ** 0.5) + 1):
+        if num % i == 0:
+            raise ValueError("Both p and q need to be prime numbers.")
 
 def gcd(a, b):
     """
@@ -24,7 +28,9 @@ def gcd(a, b):
     Returns:
     - int: The greatest common divisor of a and b.
     """
-    pass
+    while b:
+        a, b = b, a % b
+    return a
 
 def mod_inverse(e, phi):
     """
@@ -37,7 +43,15 @@ def mod_inverse(e, phi):
     Returns:
     - int: The modular inverse of e modulo phi.
     """
-    pass
+    original_phi = phi
+    x, y, u, v = 0, 1, 1, 0
+    while e != 0:
+        q, r = phi // e, phi % e
+        m, n = x - u * q, y - v * q
+        phi, e, x, y, u, v = e, r, u, v, m, n
+    if x < 0:
+        x += original_phi
+    return x
 
 def generate_keypair(p, q):
     """
@@ -51,7 +65,13 @@ def generate_keypair(p, q):
     Returns:
     - tuple: Tuple containing the public and private keys. e.g. ((e, n), (d, n))
     """
-    pass
+    n = p * q
+    phi = (p - 1) * (q - 1)
+    e = 2
+    while e < phi and gcd(e, phi) != 1:
+        e += 1
+    d = mod_inverse(e, phi)
+    return ((e, n), (d, n))
 
 def encrypt(pk, plaintext):
     """
@@ -65,7 +85,8 @@ def encrypt(pk, plaintext):
     - list: A list of integers representing the encrypted message.
     """
     key, n = pk
-    pass
+    cipher = [(ord(char) ** key) % n for char in plaintext]
+    return cipher
 
 def decrypt(pk, ciphertext):
     """
@@ -79,20 +100,32 @@ def decrypt(pk, ciphertext):
     - str: The decrypted message.
     """
     key, n = pk
-    pass
+    plain = [chr((char ** key) % n) for char in ciphertext]
+    return ''.join(plain)
 
 def main():
     """
     Main function to execute RSA-like encryption and decryption based on command line inputs.
     """
     try:
-
+        if len(sys.argv) != 4:
+            raise ValueError("Usage: python Q3.py <prime_p> <prime_q> <message>")
         p = sys.argv[1]
+        if not p.isdigit():
+            raise ValueError("Only integer values are allowed.")
         p = int(p)
-        check_prime(p)
 
         q = sys.argv[2]
+        if not q.isdigit():
+            raise ValueError("Only integer values are allowed.")
         q = int(q)
+
+        if p <= 10 or q <= 10:
+            raise ValueError("Both p and q need to be greater than 10.")
+        if p == q:
+            raise ValueError("p and q cannot be equal.")
+        
+        check_prime(p)
         check_prime(q)
 
         message = sys.argv[3]
