@@ -1,7 +1,7 @@
 import sys
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad
-from scapy.all import IP, TCP, UDP, rdpcap, Ether, Raw
+from scapy.all import IP, TCP, UDP, rdpcap, Ether
 import hashlib
 from Crypto.Hash import HMAC, SHA256
 
@@ -43,37 +43,68 @@ def calculate_packet_hash(packet):
     hash_obj.update(bytes(packet))
     return hash_obj.hexdigest()
 
+def add_padding(plaintext: bytes, block_size: int) -> bytes:
+    """
+    Adds padding to the plaintext to make its length a multiple of the block size.
+    Padding should follow PKCS#7 padding scheme. This scheme adds padding bytes where each byte's value is equal to the number of padding bytes added. For example, if 3 bytes of padding are needed, the padding would be 03 03 03.
+    
+    Parameters:
+    - plaintext (bytes): The data to be encrypted.
+    - block_size (int): The block size required by the encryption algorithm.
+    
+    Returns:
+    - bytes: The padded plaintext.
+    """
+    # Calculate number of padding bytes needed
+    padding_len = block_size - (len(plaintext) % block_size)
+    # Generate padding in PKCS#7 format
+    padding = bytes([padding_len] * padding_len)
+    return plaintext + padding
+
 def build_esp_packet(original_packet, mode, key, iv, hmac_key):
     """
     Constructs the ESP packet based on the selected mode.
     """
-    if Raw in original_packet:
-        payload = bytes(original_packet[Raw])
-    else:
-        payload = b''
-    next_header = original_packet[IP].proto.to_bytes(1, 'big')
-    
-    pad_len = AES.block_size - (len(payload) % AES.block_size)
-    padding = bytes([pad_len] * pad_len) + bytes([pad_len]) + next_header
-    payload_with_trailer = payload + padding
-
-    encrypted_data = encrypt_data(payload_with_trailer, key, iv)
-
-    spi = bytes([1, 0, 0, 0])
-    sequence_number = b'\x00\x00\x00\x01'
-    esp_header = spi + sequence_number + iv + encrypted_data
-
-    esp_hmac = compute_hmac(esp_header, hmac_key)
-
+    # Checks if mode is transport or tunnel
     if mode == 'transport':
-        original_packet = original_packet.copy()
-        original_packet.remove_payload()
-        original_packet.add_payload(esp_header + esp_hmac)
-        return original_packet
+        # Checks if TCP or UDP and extracts payload
+        if TCP in original_packet:
+            payload = bytes(original_packet[IP].payload)
+        elif UDP in original_packet:
+            payload = bytes(original_packet[IP].payload)
+        else:
+            raise ValueError("Unsupported protocol. Only TCP and UDP are currently handled.") 
+    else:
+        payload = bytes(original_packet[IP])
 
+    # Converts to a single byte
+    next_header = bytes([original_packet.proto])
+    # Pads the payload
+    padded_data = add_padding(payload, AES.block_size)
+    # Calculate padding length
+    pad_len = bytes([len(padded_data) - len(payload)])
+    # Create ESP trailer
+    esp_trailer = padded_data + pad_len + next_header
+    # Encrypt payload
+    encrypted_data = encrypt_data(esp_trailer, key, iv)
+
+    # Create ESP header
+    spi = bytes([1]) * 4 
+    sequence_number = b'\x00\x00\x00\x01'
+    esp_header = spi + sequence_number + iv
+    # Combine header and payload
+    esp_data = esp_header + encrypted_data
+    esp_hmac = compute_hmac(esp_data, hmac_key)
+
+    # Create packet based on mode
+    if mode == 'transport':
+        esp_packet = original_packet.copy()
+        esp_packet[IP].remove_payload()
+        esp_packet[IP].add_payload(esp_data + esp_hmac)
+        return esp_packet[IP]
     elif mode == 'tunnel':
-        new_ip_header = IP(src="192.168.99.99", dst=original_packet[IP].dst)
-        return new_ip_header / esp_header / esp_hmac
+        new_ip = IP(src="192.168.99.99", dst=original_packet[IP].dst)
+        return new_ip / (esp_data + esp_hmac)
 
 def main():
     """
@@ -81,11 +112,13 @@ def main():
     construct ESP packet, and display results.
     """
     try:
+        # Checks to make sure there are a correct number of arguments
         if len(sys.argv) != 3:
             raise ValueError("Usage: python3 Q5.py [path_to_pcap_file] [mode]")
         packet_file = sys.argv[1]
         mode = sys.argv[2].strip().lower()
 
+        # Checks to make sure valid mode was chosen
         if mode not in ["tunnel", "transport"]:
             raise ValueError("Invalid mode. Choose 'tunnel' or 'transport'.")
         
@@ -95,7 +128,7 @@ def main():
         except:
             raise ValueError("Failed to read the pcap file.")
         
-         # Remove Ethernet layer if present
+        # Remove Ethernet layer if present
         if Ether in original_packet:
             original_packet = original_packet[IP]
 
