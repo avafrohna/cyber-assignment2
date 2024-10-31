@@ -8,8 +8,10 @@ def check_prime(num):
     Raises:
     - ValueError: If num is not a prime number.
     """
+    # Handle negatives, 0, and 1
     if num <= 1:
         raise ValueError("Not a prime number.")
+    # Check divisibility and factors to determine if prime
     for i in range(2, int(num ** 0.5) + 1):
         if num % i == 0:
             raise ValueError("Not a prime number.")
@@ -26,6 +28,7 @@ def generate_public_key(p, g, private_key):
     Returns:
     - int: The generated public key.
     """
+    # Calculate key with modular exponentiation
     return pow(g, private_key, p)
 
 def compute_shared_secret(other_public, private_key, p):
@@ -40,6 +43,7 @@ def compute_shared_secret(other_public, private_key, p):
     Returns:
     - int: The computed shared secret.
     """
+    # Calculate secret with modular exponentiation
     return pow(other_public, private_key, p)
 
 def main():
@@ -49,8 +53,10 @@ def main():
     try:
         # Input for prime number p
         p = input("Enter prime number p: ")
+        # Checks to make sure p is given
         if not p:
             raise ValueError("Empty value is not allowed.")
+        # Checks to make sure p is an integer
         if not p.isdigit():
             raise ValueError("Only integer values are allowed.")
         p = int(p)
@@ -58,29 +64,37 @@ def main():
         
         # Input for generator g
         g = input("Enter generator g: ")
+        # Checks to make sure g is given
         if not g:
             raise ValueError("Empty value is not allowed.")
+        # Checks to make sure g is an integer
         if not g.isdigit():
             raise ValueError("Only integer values are allowed.")
         g = int(g)
 
         # Input for Alice's private key
         alice_private = input("Enter Alice's private key: ")
+        # Checks to make sure Alice's key is given
         if not alice_private:
             raise ValueError("Empty value is not allowed.")
+        # Checks to make sure Alice's key is an integer
         if not alice_private.isdigit():
             raise ValueError("Only integer values are allowed.")
         alice_private = int(alice_private)
+        # Checks to make sure Alice's key is valid
         if not (1 <= alice_private < p):
             raise ValueError("Invalid private key.")
 
         # Input and validation for Bob's private key
         bob_private = input("Enter Bob's private key: ")
+        # Checks to make sure Bob's key is given
         if not bob_private:
             raise ValueError("Empty value is not allowed.")
+        # Checks to make sure Bob's key is an integer
         if not bob_private.isdigit():
             raise ValueError("Only integer values are allowed.")
         bob_private = int(bob_private)
+        # Checks to make sure Bob's key is valid
         if not (1 <= bob_private < p):
             raise ValueError("Invalid private key.")
         
