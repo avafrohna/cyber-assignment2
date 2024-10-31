@@ -51,6 +51,7 @@ def create_certificate(private_key):
     Returns:
     - cert (x509.Certificate): The generated X.509 certificate.
     """
+    # Set subject and issuer with necessary fields
     subject = issuer = x509.Name([
         x509.NameAttribute(NameOID.COUNTRY_NAME, "AU"),
         x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, "Queensland"),
@@ -59,6 +60,7 @@ def create_certificate(private_key):
         x509.NameAttribute(NameOID.COMMON_NAME, "uq.com"),
     ])
     
+    # Build certificate
     cert = x509.CertificateBuilder() \
         .subject_name(subject) \
         .issuer_name(issuer) \
@@ -66,10 +68,6 @@ def create_certificate(private_key):
         .serial_number(SERIAL_NUMBER) \
         .not_valid_before(NOT_VALID_BEFORE) \
         .not_valid_after(NOT_VALID_AFTER) \
-        .add_extension(
-            x509.SubjectAlternativeName([x509.DNSName("uq.com")]),
-            critical=False
-        ) \
         .sign(private_key, hashes.SHA256())
 
     return cert
