@@ -15,17 +15,17 @@ def derive_key(password: bytes, salt: bytes) -> bytes:
     Returns:
     - bytes: The derived 256-bit (32 bytes) cryptographic key.
     """
-    if not password:
-        raise ValueError("Password cannot be empty.")
+    # Use a default salt if no salt is provided
     if len(salt) == 0:
         salt = bytes.fromhex("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
-    kdf = PBKDF2HMAC(
+    # Key derivation with given requirements
+    key = PBKDF2HMAC(
         algorithm=hashes.SHA256(),
         length=32,
         salt=salt,
         iterations=100000
     )
-    return kdf.derive(password)
+    return key.derive(password)
 
 
 def add_padding(plaintext: bytes, block_size: int) -> bytes:
@@ -40,7 +40,9 @@ def add_padding(plaintext: bytes, block_size: int) -> bytes:
     Returns:
     - bytes: The padded plaintext.
     """
+    # Calculate number of padding bytes needed
     padding_len = block_size - (len(plaintext) % block_size)
+    # Generate padding in PKCS#7 format
     padding = bytes([padding_len] * padding_len)
     return plaintext + padding
 
@@ -54,6 +56,7 @@ def remove_padding(padded_plaintext: bytes) -> bytes:
     Returns:
     - bytes: The plaintext without padding.
     """
+    # Calculate length of padding
     padding_len = padded_plaintext[-1]
     return padded_plaintext[:-padding_len]
 
@@ -70,13 +73,10 @@ def encrypt_aes(mode: str, key: bytes, plaintext: bytes, iv: bytes) -> tuple:
     Returns:
     - Tuple (encrypted_data, tag): The encrypted data and the authentication tag (for GCM mode). Set the tag to None if not in GCM mode.
     """
-    if not plaintext:
-        raise ValueError("Plaintext cannot be empty.")
-    if mode not in ["ECB", "CBC", "CFB", "OFB", "CTR", "GCM"]:
-        raise ValueError("Unsupported mode.")
+    # Use a default IV if none is provided
     if len(iv) == 0:
         iv = bytes.fromhex("5e8f16368792149f036e937dccd7c95b")
-
+    # Choose cipher based on mode
     cipher_mode = {
         "ECB": modes.ECB(),
         "CBC": modes.CBC(iv),
@@ -85,13 +85,13 @@ def encrypt_aes(mode: str, key: bytes, plaintext: bytes, iv: bytes) -> tuple:
         "CTR": modes.CTR(iv),
         "GCM": modes.GCM(iv)
     }[mode]
-
-    if mode in ["ECB", "CBC"] and mode != "GCM":
+    # Add padding if necessary
+    if mode in ["ECB", "CBC"]:
         plaintext = add_padding(plaintext, 16)
-    
+    # Create cipher and encryptor
     cipher = Cipher(algorithms.AES(key), cipher_mode)
     encryptor = cipher.encryptor()
-    
+    # Encrypt text and if in GCM mode, include tag
     if mode == "GCM":
         encrypted_data = encryptor.update(plaintext) + encryptor.finalize()
         return encrypted_data, encryptor.tag
@@ -113,25 +113,24 @@ def decrypt_aes(mode: str, key: bytes, ciphertext: bytes, iv: bytes, tag: bytes 
     Returns:
     - bytes: The decrypted plaintext.
     """
-    if mode not in ["ECB", "CBC", "CFB", "OFB", "CTR", "GCM"]:
-        raise ValueError("Unsupported mode.")
+    # Use a default IV if none is provided
     if len(iv) == 0:
         iv = bytes.fromhex("5e8f16368792149f036e937dccd7c95b")
-
+    # Choose cipher based on mode
     cipher_mode = {
         "ECB": modes.ECB(),
         "CBC": modes.CBC(iv),
         "CFB": modes.CFB(iv),
         "OFB": modes.OFB(iv),
         "CTR": modes.CTR(iv),
-        "GCM": modes.GCM(iv, tag) if mode == "GCM" else None
+        "GCM": modes.GCM(iv, tag)
     }[mode]
-
+    # Create cipher and decryptor
     cipher = Cipher(algorithms.AES(key), cipher_mode)
     decryptor = cipher.decryptor()
-    
+    # Decrypt text
     decrypted_data = decryptor.update(ciphertext) + decryptor.finalize()
-
+    # Remove padding if necessary
     if mode in ["ECB", "CBC"]:
         decrypted_data = remove_padding(decrypted_data)
     return decrypted_data
@@ -147,6 +146,10 @@ def main():
         # User input for password (used to derive the key)
         password = input("Enter password: ").encode()
 
+        # Checks to make sure a password was given
+        if not password:
+            raise ValueError("Password cannot be empty.")
+
         # User input for salt and IV
         try:
             salt = bytes.fromhex(input("Enter salt (leave blank for default): "))
@@ -157,8 +160,16 @@ def main():
         # User input for plaintext (data to be encrypted)
         plaintext = input("Enter plaintext: ").encode()
 
+        # Checks to make sure a text was given
+        if not plaintext:
+            raise ValueError("Plaintext cannot be empty.")
+
         # User input for AES mode (must be a valid AES mode)
         mode = input("Enter AES mode (ECB, CBC, CFB, OFB, CTR, GCM): ")
+
+        # Checks to make sure valid mode was chosen
+        if mode not in ["ECB", "CBC", "CFB", "OFB", "CTR", "GCM"]:
+            raise ValueError("Unsupported mode.")
 
         # Deriving the encryption key from the password and salt
         key = derive_key(password, salt)
